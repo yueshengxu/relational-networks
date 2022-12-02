@@ -246,6 +246,7 @@ except:
 
 if args.resume:
     filename = os.path.join(model_dirs, args.resume)
+    print(filename)
     if os.path.isfile(filename):
         print('==> loading checkpoint {}'.format(filename))
         checkpoint = torch.load(filename)
@@ -271,4 +272,4 @@ with open(f'./{args.model}_{args.seed}_log.csv', 'w') as log_file:
 
         csv_writer.writerow([epoch, train_acc_binary,
                          train_acc_unary, test_acc_binary, test_acc_unary])
-        #model.save_model(epoch)
+        model.save_model(epoch)
