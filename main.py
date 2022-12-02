@@ -245,7 +245,8 @@ except:
     print('directory {} already exists'.format(model_dirs))
 
 if args.resume:
-    filename = os.path.join(model_dirs, args.resume)
+    #filename = os.path.join(model_dirs, args.resume)
+    filename = os.path.join("./saved_model/", args.resume)
     print(filename)
     if os.path.isfile(filename):
         print('==> loading checkpoint {}'.format(filename))

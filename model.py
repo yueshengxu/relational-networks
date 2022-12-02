@@ -105,7 +105,7 @@ class RN2(BasicModel):
         self.g_fc1 = nn.Linear((256+2)*2+18, 1000)
         self.g_fc2 = nn.Linear(1000, 1000)
         self.g_fc3 = nn.Linear(1000, 1000)
-
+        self.g_fc4 = nn.Linear(1000, 1000)
 
         self.f_fc1 = nn.Linear(1000, 500)
         self.f_fc2 = nn.Linear(500, 256)
@@ -176,7 +176,8 @@ class RN2(BasicModel):
         x_ = F.relu(x_)
         x_ = self.g_fc3(x_)
         x_ = F.relu(x_)
-
+        x_ = self.g_fc4(x_)
+        x_ = F.relu(x_)
         
 
 
