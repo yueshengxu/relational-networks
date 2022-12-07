@@ -67,9 +67,9 @@ class BasicModel(nn.Module):
         super(BasicModel, self).__init__()
         self.name=name
 
-    def train_(self, input_img, input_qst, label):
+    def train_(self, input_img, input_state, input_qst, label):
         self.optimizer.zero_grad()
-        output = self(input_img, input_qst)
+        output = self(input_img, input_state, input_qst)
         #loss = F.nll_loss(output, label)
         loss = F.cross_entropy(output, label)
         loss.backward()
@@ -79,8 +79,8 @@ class BasicModel(nn.Module):
         accuracy = correct * 100. / len(label)
         return accuracy, loss
         
-    def test_(self, input_img, input_qst, label):
-        output = self(input_img, input_qst)
+    def test_(self, input_img, input_state, input_qst, label):
+        output = self(input_img, input_state, input_qst)
         loss = F.cross_entropy(output, label)
         #loss = F.nll_loss(output, label)
         pred = output.data.max(1)[1]
@@ -99,10 +99,16 @@ class RN2(BasicModel):
         self.conv = ConvInputModel()
         
         self.relation_type = args.relation_type
+        
 
         ##(number of filters per object+coordinate of object)*2+question vector
-
-        self.g_fc1 = nn.Linear((256+2)*2+18, 1000)
+        if args.state_desc == 'state-desc':
+            print("state-desc")
+            self.g_fc1 = nn.Linear(7*2+11, 500)
+        else:
+            print("pixel")
+            self.g_fc1 = nn.Linear((256+2)*2+11, 1000)
+            
         self.g_fc2 = nn.Linear(1000, 1000)
         self.g_fc3 = nn.Linear(1000, 1000)
         self.g_fc4 = nn.Linear(1000, 1000)
@@ -138,37 +144,69 @@ class RN2(BasicModel):
         self.optimizer = optim.Adam(self.parameters(), lr=args.lr)
 
 
-    def forward(self, img, qst):
-        x = self.conv(img) ## x = (64 x 24 x 5 x 5)
-        # print(x.shape)
-        """g"""
-        mb = x.size()[0]
-        n_channels = x.size()[1]
-        d = x.size()[2]
-        # x_flat = (64 x 25 x 24)
-        x_flat = x.view(mb,n_channels,d*d).permute(0,2,1)
-        
-        # add coordinates
-        x_flat = torch.cat([x_flat, self.coord_tensor],2)
-        
-        # add question everywhere
-        qst = torch.unsqueeze(qst, 1)
-        qst = qst.repeat(1, 25, 1)
-        qst = torch.unsqueeze(qst, 2)
+    def forward(self, img, state, qst):
+        if state == None:
+            x = self.conv(img) ## x = (64 x 24 x 5 x 5)
+            # print(x.shape)
+            """g"""
+            mb = x.size()[0]
+            n_channels = x.size()[1]
+            d = x.size()[2]
+            # x_flat = (64 x 25 x 24)
+            x_flat = x.view(mb,n_channels,d*d).permute(0,2,1)
+            
+            # add coordinates
+            x_flat = torch.cat([x_flat, self.coord_tensor],2)
+            
+            # add question everywhere
+            qst = torch.unsqueeze(qst, 1)  #(64x1x11)
+            qst = qst.repeat(1, 25, 1)     #(64x25x11)
+            qst = torch.unsqueeze(qst, 2)  #(64x25x1x11)
+            
+            # cast all pairs against each other
+            x_i = torch.unsqueeze(x_flat, 1)  # (64x1x25x26+18)
+            x_i = x_i.repeat(1, 25, 1, 1)      # (64x25x25x26+18)
+            x_j = torch.unsqueeze(x_flat, 2)  # (64x25x1x26+18)
+            x_j = torch.cat([x_j, qst], 3)
+            x_j = x_j.repeat(1, 1, 25, 1)  # (64x25x25x26+18)
+            
+            # concatenate all together
+            x_full = torch.cat([x_i,x_j],3) # (64x25x25x2*26+18)
+            
+            x_ = x_full.view(mb * (d * d) * (d * d), 527)  # (64*25*25x2*26*18) = (40.000, 70)
+        else:
+            x_flat = state
+            # x_flat = state.reshape((64,7,6))
+            
+            mb = x_flat.size()[0]
+            n_channels = x_flat.size()[1]
+            d = x_flat.size()[2]
+            
+            
 
-        # cast all pairs against each other
-        x_i = torch.unsqueeze(x_flat, 1)  # (64x1x25x26+18)
-        x_i = x_i.repeat(1, 25, 1, 1)  # (64x25x25x26+18)
-        x_j = torch.unsqueeze(x_flat, 2)  # (64x25x1x26+18)
-        x_j = torch.cat([x_j, qst], 3)
-        x_j = x_j.repeat(1, 1, 25, 1)  # (64x25x25x26+18)
-        
-        # concatenate all together
-        x_full = torch.cat([x_i,x_j],3) # (64x25x25x2*26+18)
+
+            # add question everywhere
+            qst = torch.unsqueeze(qst, 1) # (64x1x11)
+            qst = qst.repeat(1, 6, 1)     # (64x6x11)
+            qst = torch.unsqueeze(qst, 2) # (64x6x1x11)
+
+
+            # cast all pairs against each other
+            x_i = torch.unsqueeze(x_flat, 1)  # (64x1x6x7)
+            x_i = x_i.repeat(1, 6, 1, 1)      # (64x6x6x7)
+            x_j = torch.unsqueeze(x_flat, 2)  # (64x6x1x7)
+
+            x_j = torch.cat([x_j, qst], 3)    # (64x6x1x18)
+            x_j = x_j.repeat(1, 1, 6, 1)      # (64x6x6x18)
+
+            # concatenate all together
+            x_full = torch.cat([x_i,x_j],3)   # (64x6x6x25)
     
-        # reshape for passing through network
-        # print("Xfull",x_full.shape)
-        x_ = x_full.view(mb * (d * d) * (d * d), 534)  # (64*25*25x2*26*18) = (40.000, 70)
+            # reshape for passing through network
+
+
+
+            x_ = x_full.view(64*6*6, 7*2+11)  
             
         x_ = self.g_fc1(x_)
         x_ = F.relu(x_)
@@ -180,8 +218,11 @@ class RN2(BasicModel):
         x_ = F.relu(x_)
         
 
-
-        x_g = x_.view(mb, (d * d) * (d * d), 1000)
+        if state == None:
+            x_g = x_.view(mb, (d * d) * (d * d), 1000)
+        else: 
+            x_g = x_.view(mb, 6*6, 500)
+        
         #print(x_g.shape)
         x_g = x_g.sum(1).squeeze()
         #print(x_g.shape)
@@ -207,7 +248,7 @@ class RN(BasicModel):
         self.relation_type = args.relation_type
 
         #(number of filters per object+coordinate of object)*2+question vector
-        self.g_fc1 = nn.Linear((24+2)*2+18, 256)
+        self.g_fc1 = nn.Linear((24+2)*2+11, 256)
         #self.g_fc1 = nn.Linear((256+2)*2+18, 256)
         self.g_fc2 = nn.Linear(256, 256)
         self.g_fc3 = nn.Linear(256, 256)
