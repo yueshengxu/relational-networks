@@ -9,21 +9,28 @@ Implemented & tested on Sort-of-CLEVR task based on codes from [kimhc6028](https
 to generate sort-of-clevr dataset
 and
 
+ 	 $ python main.py 
+
+to train the state description version of binary RN model. (Default: state description)
+
+ 	 $ python main.py --state_desc pixel	
+
+to train the pixel version of binary RN model using saved model.
+
  	 $ python main.py --resume state_acc80.pth
 
-to train the state description version of binary RN model. 
+to train the state description version of binary RN model using saved mlodel. 
 
  	 $ python main.py --resume pixel_acc91.pth --state_desc pixel	
 
 to train the pixel version of binary RN model.
-
 
 ## Results
 Trained models saved under "saved_model" directory
 
 Report and results CSV files saved under "results" directory
 
-Detailed comments are in model.py
+Additional comments are in model.py
 
 ## Sort-of-CLEVR
 
