@@ -26,6 +26,10 @@ to train the state description version of binary RN model using saved mlodel.
 to train the pixel version of binary RN model.
 
 ## Results
+Pixel version trained 34 epochs in total to get 92% accuracy 
+
+State Description version trained 100 epochs in total to get 82% accuracy
+
 Trained models saved under "saved_model" directory
 
 Report and results CSV files saved under "results" directory
