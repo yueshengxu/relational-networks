@@ -17,7 +17,7 @@ to train the state description version of binary RN model. (Default: state descr
 
 to train the pixel version of binary RN model using saved model.
 
- 	 $ python main.py --resume state_acc80.pth
+ 	 $ python main.py --resume state_acc82.pth
 
 to train the state description version of binary RN model using saved mlodel. 
 
