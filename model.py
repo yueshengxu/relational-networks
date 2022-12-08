@@ -5,11 +5,14 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
-
+#four convolutional layers with 32, 64, 128 and 256 kernels, 
+#ReLU non-linearities, and batch normalization using parameters from original paper. 
+#
+#However, we found reducing the number of nodes would not cause a big drop in accuracy
 class ConvInputModel(nn.Module):
     def __init__(self):
         super(ConvInputModel, self).__init__()
-        
+
         self.conv1 = nn.Conv2d(3, 32, 3, stride=2, padding=1)
         self.batchNorm1 = nn.BatchNorm2d(32)
         self.conv2 = nn.Conv2d(32, 64, 3, stride=2, padding=1)
@@ -18,16 +21,6 @@ class ConvInputModel(nn.Module):
         self.batchNorm3 = nn.BatchNorm2d(128)
         self.conv4 = nn.Conv2d(128, 256, 3, stride=2, padding=1)
         self.batchNorm4 = nn.BatchNorm2d(256)
-        
-        # self.conv1 = nn.Conv2d(3, 24, 3, stride=2, padding=1)
-        # self.batchNorm1 = nn.BatchNorm2d(24)
-        # self.conv2 = nn.Conv2d(24, 24, 3, stride=2, padding=1)
-        # self.batchNorm2 = nn.BatchNorm2d(24)
-        # self.conv3 = nn.Conv2d(24, 24, 3, stride=2, padding=1)
-        # self.batchNorm3 = nn.BatchNorm2d(24)
-        # self.conv4 = nn.Conv2d(24, 24, 3, stride=2, padding=1)
-        # self.batchNorm4 = nn.BatchNorm2d(24)
-
         
     def forward(self, img):
         """convolution"""
@@ -45,11 +38,10 @@ class ConvInputModel(nn.Module):
         x = self.batchNorm4(x)
         return x
 
-  
+#Last fully connected layer with a softmax output
 class FCOutputModel(nn.Module):
     def __init__(self):
         super(FCOutputModel, self).__init__()
-
         # self.fc2 = nn.Linear(256, 256) #        self.fc2 = nn.Linear(256, 256)
         self.fc3 = nn.Linear(256, 10)  #        self.fc3 = nn.Linear(256, 10)
         
@@ -95,24 +87,32 @@ class RN2(BasicModel):
     def __init__(self, args):
         print("RN2")
         super(RN2, self).__init__(args, 'RN2')
-        
         self.conv = ConvInputModel()
-        
         self.relation_type = args.relation_type
         
 
-        ##(number of filters per object+coordinate of object)*2+question vector
+        # state description, itself is a representation of image
+        # we match output shape 7*2+11: 
+        # 7 = number of feature of one object
+        # 11= length of question embeddings
+        # 7*2 because we pair each two objects together
         if args.state_desc == 'state-desc':
             print("state-desc")
-            self.g_fc1 = nn.Linear(7*2+11, 500)
+            self.g_fc1 = nn.Linear(7*2+11, 1000)
+        #if we use pixel version, idea is similar expect we change different shape
         else:
             print("pixel")
             self.g_fc1 = nn.Linear((256+2)*2+11, 1000)
-            
+
+
+        
+        # 4 layers of MLP for g 
+        # much with less nodes than paper proposed
+        # But we are still able to reach accuracy above 90   
         self.g_fc2 = nn.Linear(1000, 1000)
         self.g_fc3 = nn.Linear(1000, 1000)
         self.g_fc4 = nn.Linear(1000, 1000)
-
+        # 3 layers of MLP for f
         self.f_fc1 = nn.Linear(1000, 500)
         self.f_fc2 = nn.Linear(500, 256)
         self.f_fc3 = nn.Linear(256, 256)
@@ -138,7 +138,7 @@ class RN2(BasicModel):
             np_coord_tensor[:,i,:] = np.array( cvt_coord(i) )
         self.coord_tensor.data.copy_(torch.from_numpy(np_coord_tensor))
 
-
+        
         self.fcout = FCOutputModel()
         
         self.optimizer = optim.Adam(self.parameters(), lr=args.lr)
@@ -147,7 +147,6 @@ class RN2(BasicModel):
     def forward(self, img, state, qst):
         if state == None:
             x = self.conv(img) ## x = (64 x 24 x 5 x 5)
-            # print(x.shape)
             """g"""
             mb = x.size()[0]
             n_channels = x.size()[1]
@@ -164,9 +163,9 @@ class RN2(BasicModel):
             qst = torch.unsqueeze(qst, 2)  #(64x25x1x11)
             
             # cast all pairs against each other
-            x_i = torch.unsqueeze(x_flat, 1)  # (64x1x25x26+18)
+            x_i = torch.unsqueeze(x_flat, 1)   # (64x1x25x26+18)
             x_i = x_i.repeat(1, 25, 1, 1)      # (64x25x25x26+18)
-            x_j = torch.unsqueeze(x_flat, 2)  # (64x25x1x26+18)
+            x_j = torch.unsqueeze(x_flat, 2)   # (64x25x1x26+18)
             x_j = torch.cat([x_j, qst], 3)
             x_j = x_j.repeat(1, 1, 25, 1)  # (64x25x25x26+18)
             
@@ -221,7 +220,7 @@ class RN2(BasicModel):
         if state == None:
             x_g = x_.view(mb, (d * d) * (d * d), 1000)
         else: 
-            x_g = x_.view(mb, 6*6, 500)
+            x_g = x_.view(mb, 6*6, 1000)
         
         #print(x_g.shape)
         x_g = x_g.sum(1).squeeze()
@@ -238,6 +237,10 @@ class RN2(BasicModel):
         
         return self.fcout(x_f)
 
+
+
+############################################################################################
+#####                        Model RN and CNN_MLP are not used
 class RN(BasicModel):
     def __init__(self, args):
         print("RN")
@@ -337,8 +340,6 @@ class RN(BasicModel):
         x_f = F.relu(x_f)
         
         return self.fcout(x_f)
-
-
 class CNN_MLP(BasicModel):
     def __init__(self, args):
         super(CNN_MLP, self).__init__(args, 'CNNMLP')
