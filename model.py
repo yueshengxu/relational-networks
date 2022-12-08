@@ -143,7 +143,17 @@ class RN2(BasicModel):
         
         self.optimizer = optim.Adam(self.parameters(), lr=args.lr)
 
-
+    # shape of each operation are listed, intuitions follow that:
+    # We want to create a all-to-all relation 
+    # for each vector representation of object, we cast all the objects to it
+    # for example, we have 6 objects in an image, then for each object, cast all 6 objects including itself to it
+    # and finally add question vector to each one of the pair
+    # the final shape is 64x6x6x25
+    # 64 is batch size
+    # 6x6 is shape of pair by pair
+    # 25 = 7+7+11 where two 7's are vector representations of an object, 11 is the size of question vector
+    # pixel version is similiar, except the output channel is 25,
+    # it is an abstract representation of objects in the image
     def forward(self, img, state, qst):
         if state == None:
             x = self.conv(img) ## x = (64 x 24 x 5 x 5)
@@ -175,15 +185,11 @@ class RN2(BasicModel):
             x_ = x_full.view(mb * (d * d) * (d * d), 527)  # (64*25*25x2*26*18) = (40.000, 70)
         else:
             x_flat = state
-            # x_flat = state.reshape((64,7,6))
             
             mb = x_flat.size()[0]
             n_channels = x_flat.size()[1]
             d = x_flat.size()[2]
-            
-            
-
-
+          
             # add question everywhere
             qst = torch.unsqueeze(qst, 1) # (64x1x11)
             qst = qst.repeat(1, 6, 1)     # (64x6x11)
@@ -202,9 +208,6 @@ class RN2(BasicModel):
             x_full = torch.cat([x_i,x_j],3)   # (64x6x6x25)
     
             # reshape for passing through network
-
-
-
             x_ = x_full.view(64*6*6, 7*2+11)  
             
         x_ = self.g_fc1(x_)
@@ -221,10 +224,9 @@ class RN2(BasicModel):
             x_g = x_.view(mb, (d * d) * (d * d), 1000)
         else: 
             x_g = x_.view(mb, 6*6, 1000)
-        
-        #print(x_g.shape)
+
         x_g = x_g.sum(1).squeeze()
-        #print(x_g.shape)
+
         """f"""
         x_f = self.f_fc1(x_g)
         x_f = F.relu(x_f)
