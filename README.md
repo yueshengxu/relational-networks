@@ -1,6 +1,29 @@
 Pytorch implementation of Relational Networks - [A simple neural network module for relational reasoning](https://arxiv.org/pdf/1706.01427.pdf)
 
-Implemented & tested on Sort-of-CLEVR task.
+Implemented & tested on Sort-of-CLEVR task based on codes from [kimhc6028](https://github.com/kimhc6028/relational-networks)
+
+## Usage
+
+  	$ python sort_of_clevr_generator.py
+
+to generate sort-of-clevr dataset
+and
+
+ 	 $ python main.py --resume state_acc80.pth
+
+to train the state description version of binary RN model. 
+
+ 	 $ python main.py --resume pixel_acc91.pth --state_desc pixel	
+
+to train the pixel version of binary RN model.
+
+
+## Results
+Trained models saved under "saved_model" directory
+
+Report and results CSV files saved under "results" directory
+
+Detailed comments are in model.py
 
 ## Sort-of-CLEVR
 
@@ -50,40 +73,6 @@ $ conda activate RN3
 ```
 If you don't use conda install python 3 normally and use `pip install` to install remaining dependencies. The list of dependencies can be found in the `environment.yml` file.
 
-## Usage
 
-	$ ./run.sh
 
-or
 
-  	$ python sort_of_clevr_generator.py
-
-to generate sort-of-clevr dataset
-and
-
- 	 $ python main.py 
-
-to train the binary RN model. 
-Alternatively, use 
-
- 	 $ python main.py --relation-type=ternary
-
-to train the ternary RN model.
-
-## Modifications
-In the original paper, Sort-of-CLEVR task used different model from CLEVR task. However, because model used CLEVR requires much less time to compute (network is much smaller), this model is used for Sort-of-CLEVR task.
-
-## Result
-
-| | Relational Networks (20th epoch) | CNN + MLP (without RN, 100th epoch) |
-| --- | --- | --- |
-| Non-relational question | 99% | 66% |
-| Relational question | 89% | 66% |
-
-CNN + MLP occured overfitting to the training data.
-
-Relational networks shows far better results in relational questions and non-relation questions. 
-
-## Contributions
-
-[@gngdb](https://github.com/gngdb) speeds up the model by 10 times.
