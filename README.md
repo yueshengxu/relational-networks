@@ -30,7 +30,7 @@ Trained models saved under "saved_model" directory
 
 Report and results CSV files saved under "results" directory
 
-Detailed comments are in model.py
+Additional comments are in model.py
 
 ## Sort-of-CLEVR
 
